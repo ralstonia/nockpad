@@ -5,6 +5,7 @@ enum AppPane: String, CaseIterable, Identifiable, Hashable {
     case timer
     case board
     case jotpad
+    case rhythm
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum AppPane: String, CaseIterable, Identifiable, Hashable {
         case .timer: "Timer"
         case .board: "Board"
         case .jotpad: "Jotpad"
+        case .rhythm: "Rhythm"
         }
     }
 
@@ -21,6 +23,7 @@ enum AppPane: String, CaseIterable, Identifiable, Hashable {
         case .timer: "timer"
         case .board: "rectangle.split.3x1"
         case .jotpad: "note.text"
+        case .rhythm: "chart.bar"
         }
     }
 }
@@ -31,15 +34,20 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskItem.createdAt) private var tasks: [TaskItem]
     @State private var jotStore = JotStore()
-    @State private var pane: AppPane = .timer
+    @State private var pane: AppPane = NockpadEdition.current == .fieldnotes ? .jotpad : (NockpadEdition.current == .rhythm ? .rhythm : .timer)
+    @AppStorage("return.contextID") private var returnContextID = "unassigned"
+    @AppStorage("return.context") private var returnContext = ""
+    @AppStorage("return.stoppedAt") private var returnStoppedAt = 0.0
+
+    private var panes: [AppPane] { NockpadEdition.current == .rhythm ? [.timer, .board, .jotpad, .rhythm] : [.timer, .board, .jotpad] }
     @State private var editorTask: TaskItem?
     @State private var isCreatingTask = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 20) {
-                Text(">_ NOCKPAD").fontWeight(.bold).foregroundStyle(FocusTheme.accent)
-                ForEach(Array(AppPane.allCases.enumerated()), id: \.element.id) { index, item in
+                Text(">_ " + NockpadEdition.current.appName.uppercased()).fontWeight(.bold).foregroundStyle(FocusTheme.accent)
+                ForEach(Array(panes.enumerated()), id: \.element.id) { index, item in
                     Button("[\(index + 1)] \(item.title.lowercased())") { pane = item }
                         .foregroundStyle(pane == item ? FocusTheme.accent : .secondary)
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
@@ -50,9 +58,18 @@ struct RootView: View {
             Rectangle().fill(FocusTheme.hairline).frame(height: 1)
             Group {
                 switch pane {
-                case .timer: TimerView(onEdit: { editorTask = $0 })
+                case .timer:
+                    if NockpadEdition.current == .quiet {
+                        QuietStage()
+                    } else {
+                        VStack(spacing: 0) {
+                            if NockpadEdition.current == .return { ReturnPad() }
+                            TimerView(onEdit: { editorTask = $0 })
+                        }
+                    }
                 case .board: KanbanBoardView(onEdit: { editorTask = $0 })
                 case .jotpad: JotpadView(store: jotStore)
+                case .rhythm: RhythmView()
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
             Rectangle().fill(FocusTheme.hairline).frame(height: 1)
@@ -62,7 +79,7 @@ struct RootView: View {
                 if engine.ambientIsPlaying {
                     Button("[ ambient: on · mute ]") { engine.stopAmbient() }
                 }
-                Text("⌘1 timer  ⌘2 board  ⌘3 jotpad")
+                Text(NockpadEdition.current.credit)
             }.font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
                 .padding(12).background(FocusTheme.card)
         }
@@ -72,12 +89,27 @@ struct RootView: View {
         .foregroundStyle(FocusTheme.ink)
         .background(FocusTheme.paper)
         .preferredColorScheme(.dark)
-        .frame(minWidth: 980, minHeight: 640)
+        .frame(minWidth: 980, minHeight: NockpadEdition.current == .return ? 780 : 640)
         .onReceive(NotificationCenter.default.publisher(for: .nockpadJotpad)) { _ in pane = .jotpad }
         .onAppear {
             TaskStore.seedIfEmpty(context: modelContext, existing: tasks)
             NotificationService.requestAccess()
             engine.refreshIdleDuration()
+        }
+        .onChange(of: engine.activeTaskID) { _, _ in
+            if NockpadEdition.current == .return {
+                returnContextID = engine.activeTaskID?.uuidString ?? "unassigned"
+                returnContext = tasks.first(where: { $0.id == engine.activeTaskID })?.title ?? "Unassigned focus"
+                returnStoppedAt = 0
+            }
+        }
+        .onChange(of: engine.focusStopCount) { _, _ in
+            if NockpadEdition.current == .return {
+                returnContextID = engine.activeTaskID?.uuidString ?? "unassigned"
+                returnContext = tasks.first(where: { $0.id == engine.activeTaskID })?.title ?? "Unassigned focus"
+                returnStoppedAt = Date().timeIntervalSince1970
+                pane = .timer
+            }
         }
         .onChange(of: engine.lastCompletion) { _, event in
             guard let event else { return }
@@ -110,7 +142,7 @@ struct RootView: View {
         )
         modelContext.insert(log)
 
-        if event.completed, event.phase == .focus, let taskID = event.taskID,
+        if event.countsAsPomodoro, let taskID = event.taskID,
            let task = tasks.first(where: { $0.id == taskID }) {
             task.completedPomodoros += 1
             if task.column == .backlog || task.column == .ready {

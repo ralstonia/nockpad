@@ -21,6 +21,7 @@
 		A1000000000000000000000C /* MenuBarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* MenuBarViews.swift */; };
 		A1000000000000000000000D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Assets.xcassets */; };
 		A10000000000000000000010 /* JotpadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* JotpadView.swift */; };
+		A10000000000000000000011 /* EditionFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* EditionFeatures.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 		B1000000000000000000000F /* Nockpad.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nockpad.entitlements; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Nockpad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nockpad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000010 /* JotpadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JotpadView.swift; sourceTree = "<group>"; };
+		B10000000000000000000011 /* EditionFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditionFeatures.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000010 /* JotpadView.swift */,
+				B10000000000000000000011 /* EditionFeatures.swift */,
 				B10000000000000000000007 /* RootView.swift */,
 				B10000000000000000000008 /* TimerView.swift */,
 				B10000000000000000000009 /* KanbanBoardView.swift */,
@@ -209,6 +212,7 @@
 				A10000000000000000000005 /* NotificationService.swift in Sources */,
 				A10000000000000000000006 /* Theme.swift in Sources */,
 				A10000000000000000000010 /* JotpadView.swift in Sources */,
+				A10000000000000000000011 /* EditionFeatures.swift in Sources */,
 				A10000000000000000000007 /* RootView.swift in Sources */,
 				A10000000000000000000008 /* TimerView.swift in Sources */,
 				A10000000000000000000009 /* KanbanBoardView.swift in Sources */,
@@ -354,7 +358,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Nockpad/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Nockpad;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+				NOCKPAD_EDITION = original;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -387,7 +392,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Nockpad/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Nockpad;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+				NOCKPAD_EDITION = original;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026";
 				LD_RUNPATH_SEARCH_PATHS = (

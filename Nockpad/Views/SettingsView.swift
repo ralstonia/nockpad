@@ -26,7 +26,9 @@ struct SettingsView: View {
                 Toggle("Notification at phase end", isOn: $settings.notifyOnComplete)
             }
             Section("About") {
-                LabeledContent("App", value: "Nockpad")
+                LabeledContent("App", value: NockpadEdition.current.appName)
+                LabeledContent("Edition", value: NockpadEdition.current.credit)
+                Text(NockpadEdition.current.description)
                 LabeledContent("Storage", value: "On this Mac, via SwiftData")
                 Text("Tasks live on a local Kanban board. Start a focus from a card or the timer list; completed pomodoros stay attached to the task.")
                     .foregroundStyle(.secondary)

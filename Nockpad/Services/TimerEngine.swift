@@ -9,6 +9,7 @@ struct SessionCompletion: Equatable {
     let durationSeconds: Int
     let completed: Bool
     let startedAt: Date
+    let countsAsPomodoro: Bool
 }
 
 @Observable
@@ -20,6 +21,9 @@ final class TimerEngine {
     var activeTaskID: UUID?
     var consecutiveFocusCount = 0
     var lastCompletion: SessionCompletion?
+    var focusStopCount = 0
+    private var plannedSessionSeconds: Int?
+    private var pomodoroTargetSeconds = 25 * 60
     var totalSeconds: Int = 25 * 60
 
     private var endDate: Date?
@@ -68,6 +72,8 @@ final class TimerEngine {
         }
         if sessionStartedAt == nil {
             sessionStartedAt = .now
+            plannedSessionSeconds = totalSeconds
+            pomodoroTargetSeconds = settings.seconds(for: .focus)
         }
         if phase == .focus { stopAmbient() }
         isRunning = true
@@ -91,6 +97,7 @@ final class TimerEngine {
         tickTask = nil
         NotificationService.cancelPending()
         if stoppedFocus {
+            focusStopCount += 1
             ambientRequested = true
             refreshAudio()
             if settings.bringForwardOnStop { onFocusStop() }
@@ -113,9 +120,19 @@ final class TimerEngine {
         }
     }
 
+    func beginFocus(minutes: Int) {
+        guard !isRunning else { return }
+        selectPhase(.focus)
+        reset()
+        totalSeconds = AppSettings.clampedMinutes(minutes) * 60
+        remaining = TimeInterval(totalSeconds)
+        start()
+    }
+
     func reset() {
         pause()
         sessionStartedAt = nil
+        plannedSessionSeconds = nil
         applyDuration(for: phase)
     }
 
@@ -127,6 +144,7 @@ final class TimerEngine {
         guard !isRunning else { return }
         phase = newPhase
         sessionStartedAt = nil
+        plannedSessionSeconds = nil
         applyDuration(for: newPhase)
     }
 
@@ -170,8 +188,9 @@ final class TimerEngine {
 
     private func finishCurrent(completed: Bool) {
         let finishedPhase = phase
-        let duration = settings.seconds(for: finishedPhase)
+        let duration = plannedSessionSeconds ?? totalSeconds
         let started = sessionStartedAt ?? Date().addingTimeInterval(TimeInterval(-duration))
+        let earnsPomodoro = completed && finishedPhase == .focus && duration >= pomodoroTargetSeconds
         pause()
         remaining = 0
         lastCompletion = SessionCompletion(
@@ -180,9 +199,11 @@ final class TimerEngine {
             taskID: activeTaskID,
             durationSeconds: duration,
             completed: completed,
-            startedAt: started
+            startedAt: started,
+            countsAsPomodoro: earnsPomodoro
         )
         sessionStartedAt = nil
+        plannedSessionSeconds = nil
 
         if completed {
             if settings.soundEnabled {
@@ -193,14 +214,14 @@ final class TimerEngine {
             }
         }
 
-        if completed, finishedPhase == .focus {
+        if earnsPomodoro {
             consecutiveFocusCount += 1
         }
 
         let next: TimerPhase
         if finishedPhase == .focus {
             let cycle = max(2, settings.focusesUntilLongBreak)
-            next = consecutiveFocusCount % cycle == 0 ? .longBreak : .shortBreak
+            next = earnsPomodoro && consecutiveFocusCount % cycle == 0 ? .longBreak : .shortBreak
         } else {
             next = .focus
         }

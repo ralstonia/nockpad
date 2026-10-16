@@ -9,5 +9,6 @@ xcrun swiftc -parse-as-library \
   Nockpad/Services/TimerEngine.swift \
   Nockpad/Theme/Theme.swift \
   Nockpad/Views/JotpadView.swift \
+  Nockpad/Views/EditionFeatures.swift \
   Tests/Smoke.swift -o "$check_dir/NockpadSmoke"
 "$check_dir/NockpadSmoke"

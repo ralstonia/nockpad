@@ -1,12 +1,14 @@
 import AppKit
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct JotNote: Codable, Identifiable {
     var id = UUID()
     var title = "Untitled"
     var body = ""
     var updatedAt = Date()
+    var journalDay: String?
 }
 
 @Observable
@@ -33,12 +35,33 @@ final class JotStore {
         }
     }
 
-    func add() {
+    func add(title: String = "Untitled", body: String = "", journalDay: String? = nil) {
         guard !loadFailed else { return }
-        let note = JotNote()
+        let note = JotNote(title: title, body: body, journalDay: journalDay)
         notes.insert(note, at: 0)
         selectedID = note.id
         save()
+    }
+
+    static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+    }
+
+    func openDaily(_ date: Date = .now) {
+        let key = Self.dayKey(date)
+        if let note = notes.first(where: { $0.journalDay == key }) {
+            selectedID = note.id
+        } else {
+            add(title: key, body: "## On my mind\n\n\n## Working notes\n\n\n## Next steps\n", journalDay: key)
+        }
+    }
+
+    func appendTimestamp(_ date: Date = .now) {
+        guard let id = selectedID, let note = notes.first(where: { $0.id == id }) else { return }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        update(id, body: note.body + "\n\n[" + formatter.string(from: date) + "] ")
     }
 
     func update(_ id: UUID, title: String? = nil, body: String? = nil) {
@@ -67,6 +90,9 @@ final class JotStore {
 struct JotpadView: View {
     @Bindable var store: JotStore
     @State private var search = ""
+    @State private var isExporting = false
+    @State private var exportDocument = MarkdownNoteDocument(text: "")
+    @State private var exportError: String?
     @FocusState private var editorFocused: Bool
 
     private var matches: [JotNote] {
@@ -76,7 +102,10 @@ struct JotpadView: View {
     var body: some View {
         HSplitView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("~/jotpad").foregroundStyle(FocusTheme.accent)
+                Text(NockpadEdition.current == .fieldnotes ? "~/fieldnotes" : "~/jotpad").foregroundStyle(FocusTheme.accent)
+                if NockpadEdition.current == .fieldnotes {
+                    Button("[ today's page ]") { store.openDaily(); search = ""; editorFocused = true }
+                }
                 TextField("/ search notes", text: $search)
                     .textFieldStyle(.plain)
                     .padding(8).border(FocusTheme.hairline)
@@ -123,6 +152,16 @@ struct JotpadView: View {
                             NSPasteboard.general.setString(note.title + "\n\n" + note.body, forType: .string)
                         }
                     }
+                    if NockpadEdition.current == .fieldnotes {
+                        HStack {
+                            Button("[ append timestamp ]") { store.appendTimestamp() }
+                            Button("[ export Markdown ]") {
+                                exportDocument = MarkdownNoteDocument(text: "# " + note.title + "\n\n" + note.body)
+                                isExporting = true
+                            }
+                        }
+                        if let exportError { Text(exportError).foregroundStyle(.orange) }
+                    }
                     Rectangle().fill(FocusTheme.hairline).frame(height: 1)
                     TextEditor(text: Binding(
                         get: { store.notes.first(where: { $0.id == note.id })?.body ?? "" },
@@ -150,5 +189,26 @@ struct JotpadView: View {
                 }
             }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
+        .fileExporter(isPresented: $isExporting, document: exportDocument, contentType: .plainText, defaultFilename: "Nockpad-note.md") { result in
+            switch result {
+            case .success: exportError = nil
+            case .failure(let error): exportError = "Export failed: \(error.localizedDescription)"
+            }
+        }
+    }
+}
+
+struct MarkdownNoteDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.plainText] }
+    var text: String
+    init(text: String) { self.text = text }
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents, let text = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.text = text
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: Data(text.utf8))
     }
 }

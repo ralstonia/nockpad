@@ -20,7 +20,7 @@ final class NockpadAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     static func showMainWindow() {
-        if let window = NSApp.windows.first(where: { $0.title == "Nockpad" && $0.canBecomeMain }) {
+        if let window = NSApp.windows.first(where: { $0.title == NockpadEdition.current.appName && $0.canBecomeMain }) {
             window.deminiaturize(nil)
             window.makeKeyAndOrderFront(nil)
         }
@@ -56,7 +56,7 @@ struct NockpadApp: App {
     }
 
     var body: some Scene {
-        Window("Nockpad", id: "main") {
+        Window(NockpadEdition.current.appName, id: "main") {
             if let container {
                 RootView()
                     .environment(engine)
